@@ -1,0 +1,138 @@
+{
+  "method": "approximate distortion using initUndistortRectifyMap with negated coefficients",
+  "simulation_coefficients": [
+    -0.30000001192092896,
+    0.10000000149011612,
+    0.014999999664723873,
+    -0.014999999664723873,
+    0.019999999552965164
+  ],
+  "simulation_camera_matrix": [
+    [
+      5712,
+      0,
+      2856.0
+    ],
+    [
+      0,
+      5712,
+      2142.0
+    ],
+    [
+      0,
+      0,
+      1
+    ]
+  ],
+  "image_size": [
+    5712,
+    4284
+  ],
+  "note": "Settings for the latest in-place distortion pass, not a learned calibration. Repeated calls compound distortion.",
+  "photos": [
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5074.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5074.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5075.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5075.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5076.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5076.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5077.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5077.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5078.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5078.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5079.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5079.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5080.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5080.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5081.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5081.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5082.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5082.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5083.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5083.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5084.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5084.png"
+    },
+    {
+      "source": "Profiles/sim_camera/calibration_photos/IMG_5085.png",
+      "output": "Profiles/sim_camera/calibration_photos/IMG_5085.png"
+    }
+  ],
+  "calibration": {
+    "board_internal_corners": [
+      7,
+      7
+    ],
+    "flags": [],
+    "by_image_size": {
+      "5712x4284": {
+        "image_size": [
+          5712,
+          4284
+        ],
+        "camera_matrix": [
+          [
+            2273.0632187296073,
+            0.0,
+            2822.288802894545
+          ],
+          [
+            0.0,
+            2272.812033290848,
+            2119.196926415496
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "distortion_coefficients": [
+          [
+            0.016331342549244985,
+            -0.23176773724709251,
+            0.00402092851051967,
+            -0.006655628506300221,
+            0.20867485314677547
+          ]
+        ],
+        "reprojection_error": 7.0967680884056685,
+        "used_photos": [
+          "IMG_5074.png",
+          "IMG_5075.png",
+          "IMG_5076.png",
+          "IMG_5077.png",
+          "IMG_5078.png",
+          "IMG_5079.png",
+          "IMG_5080.png",
+          "IMG_5081.png",
+          "IMG_5082.png",
+          "IMG_5083.png",
+          "IMG_5084.png",
+          "IMG_5085.png"
+        ]
+      }
+    }
+  }
+}

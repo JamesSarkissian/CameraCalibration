@@ -4,6 +4,7 @@ import json
 
 import cv2 as cv
 import numpy as np
+from photo_paths import find_photo
 
 
 def undistort_calibration_photos(profile_name):
@@ -38,13 +39,11 @@ def undistort_calibration_photos(profile_name):
         saved = calibrations[key]
         mtx = np.array(saved['camera_matrix'], dtype=np.float64)
         dist = np.array(saved['distortion_coefficients'], dtype=np.float64)
-        newcameramtx, roi = cv.getOptimalNewCameraMatrix(
+        newcameramtx, _ = cv.getOptimalNewCameraMatrix(
             mtx, dist, (w, h), 1, (w, h)
         )
         dst = cv.undistort(img, mtx, dist, None, newcameramtx)
-        x, y, crop_w, crop_h = roi
-        if crop_w > 0 and crop_h > 0:
-            dst = dst[y:y + crop_h, x:x + crop_w]
+        # Preserve the full canvas and original dimensions, including black borders.
         output = output_dir / f'calibration_{next_index:03d}.png'
         if output.exists():
             raise RuntimeError(f'Refusing to overwrite: {output}')
@@ -57,7 +56,7 @@ def undistort_calibration_photos(profile_name):
 
 
 def undistort_photo(photo_name, profile_name):
-    """Correct one test photo; return its indexed output path."""
+    """Correct one photo from either input folder; return its indexed output path."""
     if not profile_name or Path(profile_name).name != profile_name or profile_name in ('.', '..'):
         raise ValueError('Provide only a profile name.')
     if not photo_name or Path(photo_name).name != photo_name or photo_name in ('.', '..'):
@@ -66,7 +65,7 @@ def undistort_photo(photo_name, profile_name):
     metadata = json.loads((profile / 'simulation.json').read_text())
     if 'calibration' not in metadata:
         raise RuntimeError('Calibrate this profile first.')
-    path = profile / 'test_photos' / photo_name
+    path = find_photo(profile, photo_name)
     img = cv.imread(str(path))
     if img is None:
         raise RuntimeError(f'Could not read: {path}')
@@ -78,22 +77,21 @@ def undistort_photo(photo_name, profile_name):
     saved = calibrations[key]
     mtx = np.array(saved['camera_matrix'], dtype=np.float64)
     dist = np.array(saved['distortion_coefficients'], dtype=np.float64)
-    newcameramtx, roi = cv.getOptimalNewCameraMatrix(
+    newcameramtx, _ = cv.getOptimalNewCameraMatrix(
         mtx, dist, (w, h), 1, (w, h)
     )
     dst = cv.undistort(img, mtx, dist, None, newcameramtx)
-    x, y, crop_w, crop_h = roi
-    if crop_w > 0 and crop_h > 0:
-        dst = dst[y:y + crop_h, x:x + crop_w]
+    # Preserve the full canvas and original dimensions, including black borders.
     output_dir = profile / 'corrected_photos'
     output_dir.mkdir(exist_ok=True)
+    prefix = 'test' if path.parent.name == 'test_photos' else 'calibration'
     indices = [
-        int(path.stem.removeprefix('test_'))
-        for path in output_dir.glob('test_*.png')
-        if path.stem.removeprefix('test_').isdigit()
+        int(item.stem.removeprefix(prefix + '_'))
+        for item in output_dir.glob(f'{prefix}_*.png')
+        if item.stem.removeprefix(prefix + '_').isdigit()
     ]
     next_index = max(indices, default=0) + 1
-    output = output_dir / f'test_{next_index:03d}.png'
+    output = output_dir / f'{prefix}_{next_index:03d}.png'
     if output.exists():
         raise RuntimeError(f'Refusing to overwrite: {output}')
     if not cv.imwrite(str(output), dst):
