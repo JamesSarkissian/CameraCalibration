@@ -1,74 +1,78 @@
-import numpy as np
+"""Learn a profile's calibration and save it in simulation.json."""
+from pathlib import Path
+import json
+
 import cv2 as cv
-import os
-import glob
+import numpy as np
 
-criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-# Our board has 8 x 8 squares, so it has 7 x 7 internal corners.
-objp = np.zeros((7*7, 3), np.float32)
-objp[:, :2] = np.mgrid[0:7, 0:7].T.reshape(-1, 2)
+def calibrate(profile_name):
+    """Calibrate PNG chessboard photos, independently for each image size."""
+    if not profile_name or Path(profile_name).name != profile_name or profile_name in ('.', '..'):
+        raise ValueError('Provide only a profile name.')
+    profile = Path(__file__).resolve().parent / 'Profiles' / profile_name
+    metadata_path = profile / 'simulation.json'
+    metadata = json.loads(metadata_path.read_text())
+    images = sorted((profile / 'calibration_photos').glob('*.png'))
+    if not images:
+        raise RuntimeError('No calibration photos found.')
 
-images = sorted(glob.glob('DistortedImages/*.png'))
-if not images:
-    raise RuntimeError('No images found in DistortedImages.')
-os.makedirs('CorrectedImages', exist_ok=True)
+    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+    # Our board has 8 x 8 squares: 7 x 7 internal corners.
+    objp = np.zeros((7 * 7, 3), np.float32)
+    objp[:, :2] = np.mgrid[0:7, 0:7].T.reshape(-1, 2)
 
-# These photos contain two image sizes. Calibrate each set separately.
-groups = {}
-for fname in images:
-    img = cv.imread(fname)
-    size = (img.shape[1], img.shape[0])
-    groups.setdefault(size, []).append(fname)
+    groups = {}
+    for path in images:
+        img = cv.imread(str(path))
+        if img is None:
+            raise RuntimeError(f'Could not read: {path}')
+        size = (img.shape[1], img.shape[0])
+        groups.setdefault(size, []).append(path)
 
-for size, filenames in groups.items():
-    objpoints = []
-    imgpoints = []
+    results = {}
+    for size, filenames in groups.items():
+        objpoints = []
+        imgpoints = []
+        used_photos = []
+        for path in filenames:
+            img = cv.imread(str(path))
+            gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+            scale = min(1.0, 1200 / max(size))
+            small = cv.resize(gray, None, fx=scale, fy=scale)
+            ret, corners = cv.findChessboardCorners(small, (7, 7), None)
+            if ret:
+                corners = corners.reshape(-1, 1, 2)
+                corners[:, :, 0] *= size[0] / small.shape[1]
+                corners[:, :, 1] *= size[1] / small.shape[0]
+                corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+                objpoints.append(objp)
+                imgpoints.append(corners2)
+                used_photos.append(path.name)
+            print(path.name, 'corners found:', ret)
 
-    # 1. Find corners in every image in this set.
-    for fname in filenames:
-        img = cv.imread(fname)
-        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-
-        # Smaller images make corner detection faster.
-        scale = min(1.0, 1200 / max(size))
-        small = cv.resize(gray, None, fx=scale, fy=scale)
-        ret, corners = cv.findChessboardCorners(small, (7, 7), None)
-
-        if ret:
-            # Convert the detected positions back to the original image size.
-            corners = corners.reshape(-1, 1, 2)
-            corners[:, :, 0] *= size[0] / small.shape[1]
-            corners[:, :, 1] *= size[1] / small.shape[0]
-            corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-            objpoints.append(objp)
-            imgpoints.append(corners2)
-        print(fname, 'corners found:', ret)
-
-    if not objpoints:
-        raise RuntimeError(f'No chessboard corners detected for size {size}.')
-
-    # 2. Calibrate once using all detected boards in this set.
-    # Keep k3 at zero to prevent excessive distortion near the image edges.
-    rms, mtx, dist, rvecs, tvecs = cv.calibrateCamera(
-        objpoints, imgpoints, size, None, None, flags=cv.CALIB_FIX_K3
-    )
-    print('Image size:', size, 'Reprojection error:', rms)
-
-    # 3. Undistort and save each image.
-    for fname in filenames:
-        img = cv.imread(fname)
-        h, w = img.shape[:2]
-        newcameramtx, roi = cv.getOptimalNewCameraMatrix(
-            mtx, dist, (w, h), 1, (w, h)
+        if not objpoints:
+            raise RuntimeError(f'No chessboard corners detected for size {size}.')
+        # Estimate k3 as well as the other coefficients; do not fix it to zero.
+        rms, mtx, dist, rvecs, tvecs = cv.calibrateCamera(
+            objpoints, imgpoints, size, None, None, flags=0
         )
-        dst = cv.undistort(img, mtx, dist, None, newcameramtx)
+        print('Image size:', size, 'Reprojection error:', rms)
+        results[f'{size[0]}x{size[1]}'] = {
+            'image_size': list(size),
+            'camera_matrix': mtx.tolist(),
+            'distortion_coefficients': dist.tolist(),
+            'reprojection_error': float(rms),
+            'used_photos': used_photos,
+        }
 
-        x, y, crop_w, crop_h = roi
-        if crop_w > 0 and crop_h > 0:
-            dst = dst[y:y + crop_h, x:x + crop_w]
-
-        output = 'CorrectedImages/' + os.path.basename(fname)
-        if not cv.imwrite(output, dst):
-            raise RuntimeError('Could not save: ' + output)
-        print('Saved:', output)
+    metadata['calibration'] = {
+        'board_internal_corners': [7, 7],
+        'flags': [],
+        'by_image_size': results,
+    }
+    # Preserve generation metadata and replace calibration only after success.
+    temporary_path = metadata_path.with_suffix('.json.tmp')
+    temporary_path.write_text(json.dumps(metadata, indent=2) + '\n')
+    temporary_path.replace(metadata_path)
+    return metadata['calibration']
